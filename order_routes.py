@@ -3,7 +3,7 @@ from models import User, Order, OrderItem
 from dependencies import pick_session
 from main import bcrypt_context
 from schemas import UserSchema, OrderSchema
-from dependencies import pick_session
+from dependencies import pick_session, verificate_token
 from sqlalchemy.orm import Session
 
 order_router = APIRouter(prefix="/orders", tags=["orders"], dependencies=())
@@ -20,12 +20,14 @@ async def create_order(order_schema: OrderSchema, session: Session = Depends(pic
     return {"message": f"Order placed successfully: #{new_order.id}"}
 
 @order_router.post("/order/cancel/{order_id}")
-async def cancel_order(order_id: int, session: Session = Depends(pick_session)):
+async def cancel_order(order_id: int, session: Session = Depends(pick_session), user: User = Depends(verificate_token)):
     order = session.query(Order).filter(Order.id==order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
+    if not user.admin and user.id != order.user:
+        raise HTTPException(status_code=401, detail="Access denied: you are not authorized to make this change")
     order.status = "CANCELLED"
-    session.commit() #salvar as alterações
+    session.commit() #salvar as alterações 
     session.refresh(order) #atualiza o db
     return {
         "message": f"Order #{order_id}: Successfully Cancelled!",
