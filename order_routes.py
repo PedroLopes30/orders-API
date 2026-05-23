@@ -33,3 +33,13 @@ async def cancel_order(order_id: int, session: Session = Depends(pick_session), 
         "message": f"Order #{order_id}: Successfully Cancelled!",
         "order": f"{order}"
     }
+
+@order_router.get("list")
+async def list_orders(session: Session = Depends(pick_session), user: User = Depends(verificate_token)):
+    if not user.admin:
+        raise HTTPException(status_code=401, detail="Access denied: you are not authorized to make this operation")
+    else:
+        orders = session.query(Order).all()
+        return {
+            "orders": orders
+        }
