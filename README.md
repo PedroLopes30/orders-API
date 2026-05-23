@@ -29,5 +29,5 @@ This is a simple and secure API to manage orders for a pizza shop. It handles us
 
 1. **Clone the repository:** 
 ```bash 
-git clone [https://github.com/your-username/projetofastapi.git](https://github.com/your-username/projetofastapi.git) 
+git clone https://github.com/PedroLopes30/orders-API.git
 fastapi project cd
