@@ -66,7 +66,6 @@ async def login_form(forms_data: OAuth2PasswordRequestForm = Depends(), session:
         raise HTTPException(status_code=400, detail="User does not exist")
     else:
         access_token = create_token(user.id)
-        refresh_token = create_token(user.id, duration_token=timedelta(days=7))
         return {
             "access_token": access_token,
             "token_type": "Bearer"
