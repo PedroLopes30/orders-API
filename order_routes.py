@@ -60,3 +60,21 @@ async def add_item_in_order(id_order: int, item_schema: ItemSchema, session: Ses
         "id_item": item_order.id,
         "order_price": order.total_price
     }
+
+@order_router.post("/order/remove-item/{id_item}")
+async def remove_item_in_order(id_item: int,
+                                session: Session = Depends(pick_session), user: User = Depends(verificate_token)):
+    item_order = session.query(OrderItem).filter(OrderItem.id==id_item).first()
+    order = session.query(Order).filter(Order.id==item_order.order).first()
+    if not item_order:
+        raise HTTPException(status_code=404, detail="Item not found")
+    if not user.admin and user.id != order.user:
+        raise HTTPException(status_code=401, detail="Access denied: you are not authorized to make this change")
+    session.delete(item_order)
+    order.calculate_price()
+    session.commit()
+    return {
+        "message": "Item deleted successfully",
+        "amount.items_order": len(order.items),
+        "order": order
+    }    
