@@ -78,3 +78,18 @@ async def remove_item_in_order(id_item: int,
         "amount.items_order": len(order.items),
         "order": order
     }    
+@order_router.post("/order/finalize/{id_order}")
+async def cancel_order(id_order: int, session: Session = Depends(pick_session), user: User = Depends(verificate_token)):
+    order = session.query(Order).filter(Order.id==id_order).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if not user.admin and user.id != order.user:
+        raise HTTPException(status_code=401, detail="Access denied: you are not authorized to make this change")
+    order.status = "FINISHED"
+    session.commit()
+    session.refresh(order)
+    return {
+        "message": f"Order #{order.id}: Successfully Finished!",
+        "order": order
+    }    
+
