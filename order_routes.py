@@ -35,7 +35,7 @@ async def cancel_order(id_order: int, session: Session = Depends(pick_session), 
     }
 
 @order_router.get("/list")
-async def list_orders(session: Session = Depends(pick_session), user: User = Depends(verificate_token)):
+async def list_all_orders(session: Session = Depends(pick_session), user: User = Depends(verificate_token)):
     if not user.admin:
         raise HTTPException(status_code=401, detail="Access denied: you are not authorized to make this operation")
     else:
@@ -94,7 +94,7 @@ async def cancel_order(id_order: int, session: Session = Depends(pick_session), 
     }    
 
 @order_router.get("/order/{id_order}")
-async def view_orders(id_order: int, session: Session = Depends(pick_session), user: User = Depends(verificate_token)):
+async def view_order(id_order: int, session: Session = Depends(pick_session), user: User = Depends(verificate_token)):
     order = session.query(Order).filter(Order.id==id_order).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
@@ -103,4 +103,11 @@ async def view_orders(id_order: int, session: Session = Depends(pick_session), u
     return {
         "amount_items_order": len(order.items),
         "order": order
+    }
+
+@order_router.get("/list/orders-user")
+async def list_orders(session: Session = Depends(pick_session), user: User = Depends(verificate_token)):
+    orders = session.query(Order).filter(Order.user==user.id).all()
+    return {
+        "orders": orders
     }
