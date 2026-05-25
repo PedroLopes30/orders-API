@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from models import User, Order, OrderItem
 from dependencies import pick_session, verificate_token
 from main import bcrypt_context, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, SECRET_KEY
-from schemas import UserSchema, LoginSchema
+from schemas.input import UserSchema, LoginSchema
 from dependencies import pick_session
 from sqlalchemy.orm import Session
 from jose import jwt, JWTError

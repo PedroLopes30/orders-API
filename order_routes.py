@@ -2,9 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from models import User, Order, OrderItem
 from dependencies import pick_session
 from main import bcrypt_context
-from schemas import UserSchema, OrderSchema, ItemSchema
+from schemas.input import UserSchema, OrderSchema, ItemSchema
+from schemas.output import ResponseOrderSchema
 from dependencies import pick_session, verificate_token
 from sqlalchemy.orm import Session
+from typing import List
 
 order_router = APIRouter(prefix="/orders", tags=["orders"], dependencies=())
 
@@ -105,9 +107,7 @@ async def view_order(id_order: int, session: Session = Depends(pick_session), us
         "order": order
     }
 
-@order_router.get("/list/orders-user")
+@order_router.get("/list/orders-user", response_model=List[ResponseOrderSchema])
 async def list_orders(session: Session = Depends(pick_session), user: User = Depends(verificate_token)):
     orders = session.query(Order).filter(Order.user==user.id).all()
-    return {
-        "orders": orders
-    }
+    return orders
