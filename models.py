@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine, Column, Integer,  String, Boolean, Float, ForeignKey
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy_utils import ChoiceType
 
 #criando a conexão do banco
@@ -43,12 +43,20 @@ class Order(Base):
     status = Column("status", String) #Cancelado #Finalizado #Pendente
     user = Column("user", ForeignKey("users.id"))
     total_price = Column("price", Float)
-   # items = 
+    items = relationship("OrderItem", cascade="all, delete")
 
     def __init__(self, user, status="PENDING", price=0):
        self.user = user
        self.price = price
        self.status = status 
+
+    def calculate_price(self):
+        order_price = 0
+        for item in self.items:
+            item_price = item.unit_price * item.amount
+            order_price += item_price
+
+        self.total_price = order_price
 
 class OrderItem(Base):
     __tablename__= "order_items"

@@ -2,9 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from models import User, Order, OrderItem
 from dependencies import pick_session
 from main import bcrypt_context
-from schemas import UserSchema, OrderSchema
+from schemas.input import UserSchema, OrderSchema, ItemSchema
+from schemas.output import ResponseOrderSchema
 from dependencies import pick_session, verificate_token
 from sqlalchemy.orm import Session
+from typing import List
 
 order_router = APIRouter(prefix="/orders", tags=["orders"], dependencies=())
 
@@ -19,9 +21,9 @@ async def create_order(order_schema: OrderSchema, session: Session = Depends(pic
     session.commit()  
     return {"message": f"Order placed successfully: #{new_order.id}"}
 
-@order_router.post("/order/cancel/{order_id}")
-async def cancel_order(order_id: int, session: Session = Depends(pick_session), user: User = Depends(verificate_token)):
-    order = session.query(Order).filter(Order.id==order_id).first()
+@order_router.post("/order/cancel/{id_order}")
+async def cancel_order(id_order: int, session: Session = Depends(pick_session), user: User = Depends(verificate_token)):
+    order = session.query(Order).filter(Order.id==id_order).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     if not user.admin and user.id != order.user:
@@ -30,12 +32,12 @@ async def cancel_order(order_id: int, session: Session = Depends(pick_session), 
     session.commit() #salvar as alterações 
     session.refresh(order) #atualiza o db
     return {
-        "message": f"Order #{order_id}: Successfully Cancelled!",
+        "message": f"Order #{id_order}: Successfully Cancelled!",
         "order": f"{order}"
     }
 
-@order_router.get("list")
-async def list_orders(session: Session = Depends(pick_session), user: User = Depends(verificate_token)):
+@order_router.get("/list")
+async def list_all_orders(session: Session = Depends(pick_session), user: User = Depends(verificate_token)):
     if not user.admin:
         raise HTTPException(status_code=401, detail="Access denied: you are not authorized to make this operation")
     else:
@@ -43,3 +45,69 @@ async def list_orders(session: Session = Depends(pick_session), user: User = Dep
         return {
             "orders": orders
         }
+
+@order_router.post("/order/add-item/{id_order}")
+async def add_item_in_order(id_order: int, item_schema: ItemSchema, session: Session = Depends(pick_session), user: User = Depends(verificate_token)):
+    order = session.query(Order).filter(Order.id==id_order).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if not user.admin and user.id != order.user:
+        raise HTTPException(status_code=401, detail="Access denied: you are not authorized to make this change")
+    item_order = OrderItem(item_schema.flavor, item_schema.amount, item_schema.size, item_schema.description, item_schema.unit_price, id_order)
+    session.add(item_order)
+    order.calculate_price()
+    session.commit()
+    return {
+        "message": "Item created successfully",
+        "id_item": item_order.id,
+        "order_price": order.total_price
+    }
+
+@order_router.post("/order/remove-item/{id_item}")
+async def remove_item_in_order(id_item: int,
+                                session: Session = Depends(pick_session), user: User = Depends(verificate_token)):
+    item_order = session.query(OrderItem).filter(OrderItem.id==id_item).first()
+    order = session.query(Order).filter(Order.id==item_order.order).first()
+    if not item_order:
+        raise HTTPException(status_code=404, detail="Item not found")
+    if not user.admin and user.id != order.user:
+        raise HTTPException(status_code=401, detail="Access denied: you are not authorized to make this change")
+    session.delete(item_order)
+    order.calculate_price()
+    session.commit()
+    return {
+        "message": "Item deleted successfully",
+        "amount_items_order": len(order.items),
+        "order": order
+    }    
+@order_router.post("/order/finalize/{id_order}")
+async def cancel_order(id_order: int, session: Session = Depends(pick_session), user: User = Depends(verificate_token)):
+    order = session.query(Order).filter(Order.id==id_order).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if not user.admin and user.id != order.user:
+        raise HTTPException(status_code=401, detail="Access denied: you are not authorized to make this change")
+    order.status = "FINISHED"
+    session.commit()
+    session.refresh(order)
+    return {
+        "message": f"Order #{order.id}: Successfully Finished!",
+        "order": order
+    }    
+
+@order_router.get("/order/{id_order}")
+async def view_order(id_order: int, session: Session = Depends(pick_session), user: User = Depends(verificate_token)):
+    order = session.query(Order).filter(Order.id==id_order).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if not user.admin and user.id != order.user:
+        raise HTTPException(status_code=401, detail="Access denied: you are not authorized to make this operation")
+    return {
+        "amount_items_order": len(order.items),
+        "order": order
+    }
+
+@order_router.get("/list/orders-user", response_model=List[ResponseOrderSchema])
+async def list_orders(session: Session = Depends(pick_session), user: User = Depends(verificate_token)):
+    orders = session.query(Order).filter(Order.user==user.id).all()
+    return orders
